@@ -1,0 +1,69 @@
+import dash
+   from dash import dcc, html
+   from dash.dependencies import Input, Output
+   import pandas as pd
+   import plotly.express as px
+
+   # Load the IPL dataset
+   matches = pd.read_csv("matches.csv")
+   deliveries = pd.read_csv("deliveries.csv")
+
+   # Initialize the Dash app
+   app = dash.Dash(__name__)
+
+   # Layout of the dashboard
+   app.layout = html.Div([
+       html.H1("IPL Analysis Dashboard", style={"textAlign": "center"}),
+
+       # Dropdown for Team Selection
+       html.Div([
+           html.Label("Select Team:"),
+           dcc.Dropdown(
+               id="team-dropdown",
+               options=[{"label": team, "value": team} for team in matches["team1"].unique()],
+               value=matches["team1"].unique()[0],
+               style={"width": "50%"}
+           )
+       ]),
+
+       # Charts and Graphs
+       dcc.Graph(id="win-rate-chart"),
+       dcc.Graph(id="runs-distribution-chart")
+   ])
+
+   # Callback for updating charts based on selected team
+   @app.callback(
+       [Output("win-rate-chart", "figure"),
+        Output("runs-distribution-chart", "figure")],
+       [Input("team-dropdown", "value")]
+   )
+   def update_charts(selected_team):
+       # Filter data by selected team
+       team_matches = matches[(matches["team1"] == selected_team) | (matches["team2"] == selected_team)]
+       win_data = team_matches[team_matches["winner"] == selected_team]
+
+       # Win Rate Chart
+       win_rate = len(win_data) / len(team_matches) * 100
+       win_rate_fig = px.pie(
+           names=["Wins", "Losses"],
+           values=[len(win_data), len(team_matches) - len(win_data)],
+           title=f"Win Rate of {selected_team}"
+       )
+
+       # Runs Distribution Chart
+       team_deliveries = deliveries[deliveries["batting_team"] == selected_team]
+       runs_dist_fig = px.histogram(
+           team_deliveries,
+           x="batsman_runs",
+           title=f"Runs Distribution for {selected_team}",
+           labels={"batsman_runs": "Runs"},
+           nbins=10
+       )
+
+       return win_rate_fig, runs_dist_fig
+
+   # Run the Dash app
+   if __name__ == "__main__":
+       app.run(debug=True)
+
+
